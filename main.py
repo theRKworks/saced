@@ -1,17 +1,23 @@
 import pandas as pd
-from transformers import pipeline
+import nltk
+from nltk.sentiment import SentimentIntensityAnalyzer
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
 
-# 🔹 Load Hugging Face Sentiment Analysis Pipeline
-sentiment_pipeline = pipeline("sentiment-analysis") 
+# Download the VADER sentiment lexicon (only required once)
+nltk.download("vader_lexicon")
 
-# 🔹 Initialize LangChain Chat Model (Replace with your API Key if required)
-llm = ChatOpenAI(model_name="gpt-4", temperature=0.7)  
+# Initialize Sentiment Analyzer (VADER)
+sia = SentimentIntensityAnalyzer()
 
-# 🔹 Memory to Track Conversation Context
+
+openai_api_key = "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"
+
+llm = ChatOpenAI(model_name="gpt-4", temperature=0.7, openai_api_key=openai_api_key)
+
+# Memory for tracking conversation context
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 # =========================
@@ -19,30 +25,40 @@ memory = ConversationBufferMemory(memory_key="chat_history", return_messages=Tru
 # =========================
 def analyze_sentiment(text_input):
     """
-    Uses a pre-trained Hugging Face model to analyze sentiment of a given text.
+    Uses VADER Sentiment Analysis to determine sentiment polarity.
+    
+    Returns:
+    - 'POSITIVE' if compound score > 0.05
+    - 'NEGATIVE' if compound score < -0.05
+    - 'NEUTRAL' otherwise
     """
-    result = sentiment_pipeline(text_input)
-    return result[0]['label']  # Output: 'POSITIVE', 'NEGATIVE', 'NEUTRAL'
+    score = sia.polarity_scores(text_input)["compound"]
+    if score > 0.05:
+        return "POSITIVE"
+    elif score < -0.05:
+        return "NEGATIVE"
+    else:
+        return "NEUTRAL"
 
 # =========================
 # 🔹 Function: Process CSV File
 # =========================
 def process_csv(file_path):
     """
-    Reads a CSV file, analyzes sentiment for each row, adds a new column, and saves the modified file.
+    Reads a CSV file, performs sentiment analysis on reviews, and saves the modified file.
 
     Parameters:
     - file_path (str): Path to the CSV file.
 
     Returns:
-    - modified_df (DataFrame): The modified DataFrame with an added 'Sentiment Score' column.
+    - modified_df (DataFrame): DataFrame with an added 'Sentiment Score' column.
     - output_file (str): Path to the saved modified CSV file.
     """
     try:
         # Load CSV file (handling different encodings)
         df = pd.read_csv(file_path, encoding="utf-8", errors="replace")
 
-        # Check if the expected column exists
+        # Check if 'Review' column exists
         if "Review" not in df.columns:
             raise ValueError("CSV must contain a column named 'Review' for sentiment analysis.")
 
@@ -93,34 +109,3 @@ def chatbot_on_sentiment_analysis(user_query):
 
     response = chatbot_chain.run({"analysis_results": memory.load_memory_variables({})["chat_history"], "question": user_query})
     return response
-
-# =========================
-# 🔹 Function: Identify Loyal Customers
-# =========================
-def get_loyal_customers(df):
-    """
-    Identifies the most loyal customers based on sentiment analysis.
-
-    Parameters:
-    - df (DataFrame): The modified DataFrame with sentiment scores.
-
-    Returns:
-    - loyal_customers_df (DataFrame): A DataFrame of the most loyal customers.
-    """
-    try:
-        # Assuming 'Customer Name' exists and positive reviews indicate loyalty
-        if "Customer Name" not in df.columns:
-            raise ValueError("CSV must contain a column named 'Customer Name'.")
-
-        # Filter customers with positive sentiment scores
-        loyal_customers_df = df[df["Sentiment Score"] == "POSITIVE"][["Customer Name"]].drop_duplicates()
-
-        # Save loyal customers CSV
-        loyal_customers_file = "loyal_customers.csv"
-        loyal_customers_df.to_csv(loyal_customers_file, index=False, encoding="utf-8")
-
-        return loyal_customers_df, loyal_customers_file
-
-    except Exception as e:
-        print(f"Error identifying loyal customers: {e}")
-        return None, None

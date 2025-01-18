@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
-import os
-from main import process_csv, chatbot_on_sentiment_analysis, get_loyal_customers
-import matplotlib.pyplot as plt
+from main import process_csv, chatbot_on_sentiment_analysis
 
 # Streamlit App Title
 st.set_page_config(page_title="Customer Sentiment Analysis", layout="wide")
@@ -28,36 +26,11 @@ if uploaded_file:
 
         # Download Button for Modified CSV
         st.download_button(
-            label="📥 Download Processed CSV",
+            label="📥 Download Processed CSV with Sentiment Scores",
             data=open(modified_file, "rb"),
             file_name="modified_reviews.csv",
             mime="text/csv"
         )
-
-        # Generate Live Dashboard for Sentiment Distribution
-        st.write("### 📊 Sentiment Distribution")
-        sentiment_counts = df["Sentiment Score"].value_counts()
-        
-        fig, ax = plt.subplots()
-        ax.bar(sentiment_counts.index, sentiment_counts.values, color=["green", "gray", "red"])
-        ax.set_xlabel("Sentiment")
-        ax.set_ylabel("Count")
-        ax.set_title("Distribution of Sentiment Scores")
-        st.pyplot(fig)
-
-        # Identify Loyal Customers
-        loyal_customers_df, loyal_customers_file = get_loyal_customers(df)
-
-        if loyal_customers_df is not None:
-            st.write("### ⭐ Most Loyal Customers")
-            st.dataframe(loyal_customers_df)
-
-            st.download_button(
-                label="📥 Download Loyal Customers CSV",
-                data=open(loyal_customers_file, "rb"),
-                file_name="loyal_customers.csv",
-                mime="text/csv"
-            )
 
         # Chatbot for Sentiment Analysis Discussion
         st.write("### 💬 Chatbot: Discuss Your Sentiment Analysis Results")
