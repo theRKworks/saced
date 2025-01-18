@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from main import process_csv, chatbot_on_sentiment_analysis, get_loyal_customers
 import matplotlib.pyplot as plt
-
+# i am good
 # Streamlit App Title
 st.set_page_config(page_title="Customer Sentiment Analysis", layout="wide")
 st.title("📊 Customer Sentiment Analysis Tool")
@@ -12,7 +12,7 @@ st.title("📊 Customer Sentiment Analysis Tool")
 uploaded_file = st.file_uploader("Upload a CSV file containing customer reviews", type=["csv"])
 
 if uploaded_file:
-    st.success("✅ File Uploaded Successfully!")
+    st.success(" File Uploaded Successfully!")
     
     # Save uploaded file
     file_path = "uploaded_data.csv"
