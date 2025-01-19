@@ -1,68 +1,61 @@
 import streamlit as st
 import pandas as pd
-import os
-from main import process_csv, chatbot_on_sentiment_analysis, get_loyal_customers
-import matplotlib.pyplot as plt
-# i am good
+from main import process_csv, chatbot_on_sentiment_analysis
+import time
+
 # Streamlit App Title
 st.set_page_config(page_title="Customer Sentiment Analysis", layout="wide")
 st.title("📊 Customer Sentiment Analysis Tool")
 
 # File Upload Section
+
+
+# File Upload Section
 uploaded_file = st.file_uploader("Upload a CSV file containing customer reviews", type=["csv"])
 
+
 if uploaded_file:
-    st.success(" File Uploaded Successfully!")
+    st.success("✅ File Uploaded Successfully!")
     
-    # Save uploaded file
+    # Save uploaded file to disk
     file_path = "uploaded_data.csv"
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
+    
+    # Read the raw contents of the file for debugging
+    raw_data = uploaded_file.getvalue().decode("utf-8", errors="ignore")
+    
+    # Display raw file content (first 500 characters)
+    st.write("### Raw File Content Preview:")
+    st.text(raw_data[:500])  # Display first 500 characters to check the file content
 
-    # Process the CSV File for Sentiment Analysis
-    df, modified_file = process_csv(file_path)
-
-    if df is not None:
-        st.write("### 📂 Processed Data Preview")
-        st.dataframe(df.head(10))  # Show first 10 rows
-
-        # Download Button for Modified CSV
-        st.download_button(
-            label="📥 Download Processed CSV",
-            data=open(modified_file, "rb"),
-            file_name="modified_reviews.csv",
-            mime="text/csv"
-        )
-
-        # Generate Live Dashboard for Sentiment Distribution
-        st.write("### 📊 Sentiment Distribution")
-        sentiment_counts = df["Sentiment Score"].value_counts()
+    # Now attempt to load the CSV into pandas
+    try:
+        # Load CSV file with encoding handling
+        df = pd.read_csv(file_path, encoding="utf-8", errors="replace")
         
-        fig, ax = plt.subplots()
-        ax.bar(sentiment_counts.index, sentiment_counts.values, color=["green", "gray", "red"])
-        ax.set_xlabel("Sentiment")
-        ax.set_ylabel("Count")
-        ax.set_title("Distribution of Sentiment Scores")
-        st.pyplot(fig)
+        # Log the column names and first few rows for debugging
+        st.write("### 📂 CSV Columns:")
+        st.write(df.columns)  # Display column names
 
-        # Identify Loyal Customers
-        loyal_customers_df, loyal_customers_file = get_loyal_customers(df)
+        st.write("### 📂 Data Preview:")
+        st.write(df.head())  # Show first few rows
 
-        if loyal_customers_df is not None:
-            st.write("### ⭐ Most Loyal Customers")
-            st.dataframe(loyal_customers_df)
+        # Ensure 'Review' column exists
+        if "review" not in df.columns:
+            st.error("❌ The CSV file must contain a column named 'Review' for sentiment analysis.")
+        else:
+            st.success("✅ File processed successfully!")
+            # Continue with processing, e.g., sentiment analysis...
+            
+    except Exception as e:
+        st.error(f"❌ An error occurred while loading the file: {e}")
 
-            st.download_button(
-                label="📥 Download Loyal Customers CSV",
-                data=open(loyal_customers_file, "rb"),
-                file_name="loyal_customers.csv",
-                mime="text/csv"
-            )
 
-        # Chatbot for Sentiment Analysis Discussion
-        st.write("### 💬 Chatbot: Discuss Your Sentiment Analysis Results")
+    # Chatbot for Sentiment Analysis Discussion
+    st.write("### 💬 Chatbot: Discuss Your Sentiment Analysis Results")
 
-        user_query = st.text_input("Ask a question about the sentiment analysis results:")
-        if user_query:
-            response = chatbot_on_sentiment_analysis(user_query)
-            st.write(f"🤖 Chatbot: {response}")
+    user_query = st.text_input("Ask a question about the sentiment analysis results:")
+    if user_query:
+        response = chatbot_on_sentiment_analysis(user_query)
+        st.write(f"🤖 Chatbot: {response}")
