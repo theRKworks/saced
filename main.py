@@ -1,81 +1,83 @@
+import os
 import pandas as pd
 import nltk
 from nltk.sentiment import SentimentIntensityAnalyzer
+import openai
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
-import time
+import streamlit as st
+import plotly.express as px
 
-# Download the VADER sentiment lexicon (only required once)
+# 🔹 Download VADER Sentiment Lexicon (only required once)
 nltk.download("vader_lexicon")
 
-# Initialize Sentiment Analyzer (VADER)
+# 🔹 Initialize VADER Sentiment Analyzer
 sia = SentimentIntensityAnalyzer()
 
-#copy api key from openai
-openai_api_key = "Enter your api key"
+# 🔹 Set OpenAI API Key (Use Environment Variable for Security)
+openai_api_key = os.getenv("OPENAI_API_KEY")  # Use "export OPENAI_API_KEY='your_key'" in terminal
+openai.api_key = openai_api_key  # Set OpenAI API key
 
+# 🔹 Initialize GPT-4 Model
 llm = ChatOpenAI(model_name="gpt-4", temperature=0.7, openai_api_key=openai_api_key)
 
-# Memory for tracking conversation context
+# 🔹 Memory for Tracking Chat History
 memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
 # =========================
-# 🔹 Function: Sentiment Analysis
+# 🔹 Function: Aspect-Based Sentiment Analysis
 # =========================
-def analyze_sentiment(text_input):
+def analyze_aspect_based_sentiment(review):
     """
-    Uses VADER Sentiment Analysis to determine sentiment polarity.
-    
-    Returns:
-    - 'POSITIVE' if compound score > 0.05
-    - 'NEGATIVE' if compound score < -0.05
-    - 'NEUTRAL' otherwise
+    Uses GPT-4 to analyze sentiment based on different aspects in the review.
+    Returns structured output with aspect-wise sentiment classification.
     """
-    score = sia.polarity_scores(text_input)["compound"]
-    if score > 0.05:
-        return "POSITIVE"
-    elif score < -0.05:
-        return "NEGATIVE"
-    else:
-        return "NEUTRAL"
+    prompt = f"""
+    You are an AI performing Aspect-Based Sentiment Analysis (ABSA).
+    Given a customer review, extract key aspects and classify their sentiment as Positive, Neutral, or Negative.
+
+    Example:
+    Review: "The food was amazing, but the service was slow. The ambiance was great though."
+    Output: 
+    - Food: Positive
+    - Service: Negative
+    - Ambiance: Positive
+
+    Now analyze the following review:
+
+    Review: "{review}"
+
+    Output:
+    """
+
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role": "system", "content": prompt}],
+        temperature=0.5
+    )
+
+    return response["choices"][0]["message"]["content"].strip()
 
 # =========================
 # 🔹 Function: Process CSV File
 # =========================
-def process_csv(file_path, progress_bar):
+def process_csv(file_path):
     """
-    Reads a CSV file, performs sentiment analysis using GPT-4, and saves the modified file.
-
-    Parameters:
-    - file_path (str): Path to the CSV file.
-    - progress_bar: Streamlit progress bar to display processing status.
-
-    Returns:
-    - modified_df (DataFrame): DataFrame with an added 'Sentiment Score' column.
-    - output_file (str): Path to the saved modified CSV file.
+    Reads a CSV file, performs aspect-based sentiment analysis for each review,
+    adds a new column for sentiment, and saves the modified file.
     """
     try:
-        # Load CSV file (handling different encodings)
-        df = pd.read_csv(file_path, encoding="utf-8", errors="ignore")
+        df = pd.read_csv(file_path, encoding="utf-8", errors="replace")
 
-        # Check if 'Review' column exists
-        if "review" not in df.columns:
-            raise ValueError("CSV must contain a column named 'Review' for sentiment analysis.")
+        if "Review" not in df.columns:
+            raise ValueError("CSV must contain a column named 'Review'.")
 
-        # Apply sentiment analysis to each review with progress bar
-        total_rows = len(df)
-        for idx, row in df.iterrows():
-            sentiment = analyze_sentiment(row["review"])
-            df.at[idx, "Sentiment Score"] = sentiment
+        # Apply sentiment analysis to each review
+        df["Aspect-Based Sentiment"] = df["Review"].apply(analyze_aspect_based_sentiment)
 
-            # Update progress bar
-            progress_bar.progress(int((idx + 1) / total_rows * 100))
-            time.sleep(0.1)  # Slight delay to make progress bar visible
-
-        # Save the modified CSV file
-        output_file = "modified_reviews.csv"
+        output_file = "processed_reviews.csv"
         df.to_csv(output_file, index=False, encoding="utf-8")
 
         return df, output_file
@@ -84,10 +86,23 @@ def process_csv(file_path, progress_bar):
         print(f"Error processing file: {e}")
         return None, None
 
-
 # =========================
 # 🔹 Function: Chatbot for Sentiment Analysis
 # =========================
+prompt_template = PromptTemplate(
+    input_variables=["chat_history", "question"],
+    template="""
+    Given the conversation history and the user question, provide a helpful response.
+    If the question is about sentiment analysis, refer to previous discussions.
+    
+    Chat History: {chat_history}
+    User: {question}
+    """
+)
+
+# 🔹 Create Chatbot Chain
+chatbot = LLMChain(llm=llm, prompt=prompt_template, memory=memory)
+
 def chatbot_on_sentiment_analysis(user_query):
     """
     Allows the user to chat about sentiment analysis results.
@@ -98,24 +113,28 @@ def chatbot_on_sentiment_analysis(user_query):
     Returns:
     - str: Chatbot's response.
     """
-    # Chatbot Prompt Template
-    template = """You are an AI chatbot providing insights based on sentiment analysis.
-    The user has uploaded a dataset, and the sentiment analysis results are:
+    return chatbot.predict(question=user_query)
 
-    {analysis_results}
 
-    Use this data to answer any questions about sentiment trends, issues, or improvement suggestions.
 
-    User: {question}
-    AI:"""
+def live_dashboard(df):
+    """
+    Displays a live dashboard for sentiment analysis results.
+    
+    Parameters:
+    - df (DataFrame): The modified DataFrame with aspect-based sentiment scores.
+    """
+    st.title("📊 Sentiment Analysis Dashboard")
 
-    prompt = PromptTemplate(template=template, input_variables=["analysis_results", "question"])
+    if "Aspect-Based Sentiment" not in df.columns:
+        st.error("The DataFrame must contain an 'Aspect-Based Sentiment' column.")
+        return
 
-    chatbot_chain = LLMChain(
-        llm=llm,
-        prompt=prompt,
-        memory=memory
-    )
+    sentiment_counts = df["Aspect-Based Sentiment"].value_counts().reset_index()
+    sentiment_counts.columns = ["Sentiment", "Count"]
 
-    response = chatbot_chain.run({"analysis_results": memory.load_memory_variables({})["chat_history"], "question": user_query})
-    return response
+    fig = px.pie(sentiment_counts, names="Sentiment", values="Count", title="Sentiment Distribution")
+    st.plotly_chart(fig)
+
+    st.write("### Sample Data")
+    st.dataframe(df.head(10))
