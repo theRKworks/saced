@@ -13,8 +13,8 @@ nltk.download("vader_lexicon")
 # Initialize Sentiment Analyzer (VADER)
 sia = SentimentIntensityAnalyzer()
 
-
-openai_api_key = "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"
+#copy api key from openai
+openai_api_key = "Enter your api key"
 
 llm = ChatOpenAI(model_name="gpt-4", temperature=0.7, openai_api_key=openai_api_key)
 
