@@ -17,7 +17,7 @@ nltk.download("vader_lexicon")
 sia = SentimentIntensityAnalyzer()
 
 # 🔹 Set OpenAI API Key (Use Environment Variable for Security)
-openai_api_key = os.getenv("OPENAI_API_KEY")  # Use "export OPENAI_API_KEY='your_key'" in terminal
+openai_api_key = "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"
 openai.api_key = openai_api_key  # Set OpenAI API key
 
 # 🔹 Initialize GPT-4 Model
@@ -63,28 +63,33 @@ def analyze_aspect_based_sentiment(review):
 # =========================
 # 🔹 Function: Process CSV File
 # =========================
-def process_csv(file_path):
+def process_csv(df):
     """
-    Reads a CSV file, performs aspect-based sentiment analysis for each review,
-    adds a new column for sentiment, and saves the modified file.
+    Processes the DataFrame by performing aspect-based sentiment analysis and creating two output files:
+    - processed_reviews.csv (with sentiment analysis results)
+    - loyal_customers.csv (with a special segment of loyal customers, based on criteria)
     """
+    # pre_processing function called
     try:
-        df = pd.read_csv(file_path, encoding="utf-8", errors="replace")
 
-        if "Review" not in df.columns:
-            raise ValueError("CSV must contain a column named 'Review'.")
-
-        # Apply sentiment analysis to each review
+        # Apply aspect-based sentiment analysis to each review
         df["Aspect-Based Sentiment"] = df["Review"].apply(analyze_aspect_based_sentiment)
 
-        output_file = "processed_reviews.csv"
-        df.to_csv(output_file, index=False, encoding="utf-8")
+        # Save processed reviews to a CSV file
+        processed_file = "processed_reviews.csv"
+        df.to_csv(processed_file, index=False, encoding="utf-8")
 
-        return df, output_file
+        # Example criteria for loyal customers (this can be customized)
+        loyal_customers_df = df[df["Aspect-Based Sentiment"] == "Positive"]  # Example: Loyal customers are those with positive sentiment
+        loyal_customers_file = "loyal_customers.csv"
+        loyal_customers_df.to_csv(loyal_customers_file, index=False, encoding="utf-8")
+
+        return df, processed_file, loyal_customers_file
 
     except Exception as e:
-        print(f"Error processing file: {e}")
-        return None, None
+        print(f"Error processing DataFrame: {e}")
+        return None, None, None
+
 
 # =========================
 # 🔹 Function: Chatbot for Sentiment Analysis
