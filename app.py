@@ -18,13 +18,16 @@ if uploaded_file:
         f.write(uploaded_file.getbuffer())
     
     # Read the raw contents of the file for debugging
-    raw_data = uploaded_file.getvalue().decode("utf-8", errors="ignore")
+    raw_data = uploaded_file.getvalue()
     st.write("### Raw File Content Preview:")
     st.text(raw_data[:500])  # Display first 500 characters to check the file content
 
     try:
-        # Load the file into a DataFrame
-        df = pd.read_csv(uploaded_file)
+        # Load the file into a DataFrame uploaded_file
+        try:
+           df = pd.read_csv(uploaded_file, encoding='latin-1')  # Try 'latin-1' encoding
+        except UnicodeDecodeError:
+           df = pd.read_csv(uploaded_file, encoding='cp1252')  # Try 'cp1252' encoding if 'latin-1' fails
 
         # Log the column names and first few rows for debugging
         st.write("### 📂 CSV Columns:")
@@ -34,14 +37,14 @@ if uploaded_file:
         st.write(df.head())  # Show first few rows
 
         # Ensure 'Review' column exists
-        if "Review" not in df.columns:
-            st.error("❌ The CSV file must contain a column named 'Review' for sentiment analysis.")
+        if "Comments" not in df.columns:
+            st.error("❌ The CSV file must contain a column named 'comments' for sentiment analysis.")
         else:
             st.success("✅ File processed successfully!")
 
             # Process the CSV (aspect-based sentiment analysis)
             df, processed_file, loyal_customers_file = process_csv(df)
-
+            print(df.head())
             if df is not None:
                 # Display processed results
                 st.write("### Processed Data Preview:")
@@ -69,5 +72,4 @@ if uploaded_file:
 
     except Exception as e:
         st.error(f"❌ An error occurred while loading the file: {e}")
-
 
