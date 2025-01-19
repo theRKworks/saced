@@ -1,6 +1,5 @@
 numpy 
 pandas 
 torch 
-transformer 
 langchain 
 streamlit
