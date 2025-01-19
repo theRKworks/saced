@@ -17,7 +17,7 @@ nltk.download("vader_lexicon")
 sia = SentimentIntensityAnalyzer()
 
 # 🔹 Set OpenAI API Key (Use Environment Variable for Security)
-openai_api_key = "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"
+openai_api_key = "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"
 openai.api_key = openai_api_key  # Set OpenAI API key
 
 # 🔹 Initialize GPT-4 Model
@@ -28,6 +28,12 @@ memory = ConversationBufferMemory(memory_key="chat_history", return_messages=Tru
 
 # =========================
 # 🔹 Function: Aspect-Based Sentiment Analysis
+def preprocess_data(df):
+    df['Comment'] = df['Rating'].astype(str) + ', ' + df['Comments']
+
+    df.drop(['Date', 'Comments', 'Rating','Review Title'], axis=1, inplace=True)
+    return df
+
 # =========================
 def analyze_aspect_based_sentiment(review):
     """
@@ -70,10 +76,12 @@ def process_csv(df):
     - loyal_customers.csv (with a special segment of loyal customers, based on criteria)
     """
     # pre_processing function called
+    df=preprocess_data(df)
+    print(df.head())
     try:
 
         # Apply aspect-based sentiment analysis to each review
-        df["Aspect-Based Sentiment"] = df["Review"].apply(analyze_aspect_based_sentiment)
+        df["Aspect-Based Sentiment"] = df["Comment"].apply(analyze_aspect_based_sentiment)
 
         # Save processed reviews to a CSV file
         processed_file = "processed_reviews.csv"
@@ -82,7 +90,7 @@ def process_csv(df):
         # Example criteria for loyal customers (this can be customized)
         loyal_customers_df = df[df["Aspect-Based Sentiment"] == "Positive"]  # Example: Loyal customers are those with positive sentiment
         loyal_customers_file = "loyal_customers.csv"
-        loyal_customers_df.to_csv(loyal_customers_file, index=False, encoding="utf-8")
+        loyal_customers_df.to_csv(loyal_customers_file, index=False, encoding='latin-1')
 
         return df, processed_file, loyal_customers_file
 
@@ -142,4 +150,5 @@ def live_dashboard(df):
     st.plotly_chart(fig)
 
     st.write("### Sample Data")
+
     st.dataframe(df.head(10))
