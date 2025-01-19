@@ -5,6 +5,7 @@ from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import LLMChain
 from langchain.prompts import PromptTemplate
+import time
 
 # Download the VADER sentiment lexicon (only required once)
 nltk.download("vader_lexicon")
@@ -43,12 +44,13 @@ def analyze_sentiment(text_input):
 # =========================
 # 🔹 Function: Process CSV File
 # =========================
-def process_csv(file_path):
+def process_csv(file_path, progress_bar):
     """
-    Reads a CSV file, performs sentiment analysis on reviews, and saves the modified file.
+    Reads a CSV file, performs sentiment analysis using GPT-4, and saves the modified file.
 
     Parameters:
     - file_path (str): Path to the CSV file.
+    - progress_bar: Streamlit progress bar to display processing status.
 
     Returns:
     - modified_df (DataFrame): DataFrame with an added 'Sentiment Score' column.
@@ -59,11 +61,18 @@ def process_csv(file_path):
         df = pd.read_csv(file_path, encoding="utf-8", errors="replace")
 
         # Check if 'Review' column exists
-        if "Review" not in df.columns:
+        if "review" not in df.columns:
             raise ValueError("CSV must contain a column named 'Review' for sentiment analysis.")
 
-        # Apply sentiment analysis to each review
-        df["Sentiment Score"] = df["Review"].apply(analyze_sentiment)
+        # Apply sentiment analysis to each review with progress bar
+        total_rows = len(df)
+        for idx, row in df.iterrows():
+            sentiment = analyze_sentiment(row["review"])
+            df.at[idx, "Sentiment Score"] = sentiment
+
+            # Update progress bar
+            progress_bar.progress(int((idx + 1) / total_rows * 100))
+            time.sleep(0.1)  # Slight delay to make progress bar visible
 
         # Save the modified CSV file
         output_file = "modified_reviews.csv"
@@ -74,6 +83,7 @@ def process_csv(file_path):
     except Exception as e:
         print(f"Error processing file: {e}")
         return None, None
+
 
 # =========================
 # 🔹 Function: Chatbot for Sentiment Analysis
