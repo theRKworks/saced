@@ -8,11 +8,7 @@ st.set_page_config(page_title="Customer Sentiment Analysis", layout="wide")
 st.title("📊 Customer Sentiment Analysis Tool")
 
 # File Upload Section
-
-
-# File Upload Section
 uploaded_file = st.file_uploader("Upload a CSV file containing customer reviews", type=["csv"])
-
 
 if uploaded_file:
     st.success("✅ File Uploaded Successfully!")
@@ -31,8 +27,9 @@ if uploaded_file:
 
     # Now attempt to load the CSV into pandas
     try:
-        # Load CSV file with encoding handling
-        df = pd.read_csv(file_path, encoding="utf-8", errors="replace")
+        # Open the file using 'open' to handle encoding issues
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            df = pd.read_csv(f)
         
         # Log the column names and first few rows for debugging
         st.write("### 📂 CSV Columns:")
@@ -42,7 +39,7 @@ if uploaded_file:
         st.write(df.head())  # Show first few rows
 
         # Ensure 'Review' column exists
-        if "review" not in df.columns:
+        if "Review" not in df.columns:
             st.error("❌ The CSV file must contain a column named 'Review' for sentiment analysis.")
         else:
             st.success("✅ File processed successfully!")
@@ -59,3 +56,4 @@ if uploaded_file:
     if user_query:
         response = chatbot_on_sentiment_analysis(user_query)
         st.write(f"🤖 Chatbot: {response}")
+
