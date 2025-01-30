@@ -75,7 +75,7 @@ streamlit run app.py
 
 Rishi Kushwaha (@theRKworks)
 
-Uttkarsh Solanki (@hisenberg06)
+Uttkarsh Solanki (@hiensenberg05)
 
 📜 License
 
