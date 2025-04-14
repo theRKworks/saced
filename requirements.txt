@@ -4,3 +4,4 @@ torch
 nltk
 langchain 
 streamlit
+plotly.express

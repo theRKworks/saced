@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
+from main import process_csv, chatbot_on_sentiment_analysis
+from dotenv import load_dotenv
 import os
-from main import process_csv, chatbot_on_sentiment_analysis, get_loyal_customers
-import matplotlib.pyplot as plt
-# i am good
+
 # Streamlit App Title
 st.set_page_config(page_title="Customer Sentiment Analysis", layout="wide")
 st.title("📊 Customer Sentiment Analysis Tool")
@@ -12,57 +13,97 @@ st.title("📊 Customer Sentiment Analysis Tool")
 uploaded_file = st.file_uploader("Upload a CSV file containing customer reviews", type=["csv"])
 
 if uploaded_file:
-    st.success(" File Uploaded Successfully!")
-    
-    # Save uploaded file to disk
-    file_path = "uploaded_data.csv"
-    with open(file_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
+    st.success("✅ File Uploaded Successfully!")
 
-    # Process the CSV File for Sentiment Analysis
-    df, modified_file = process_csv(file_path)
+    # Read uploaded file into DataFrame
+    try:
+        df = pd.read_csv(uploaded_file, encoding="utf-8", errors="replace")
 
-    if df is not None:
-        st.write("### 📂 Processed Data Preview")
-        st.dataframe(df.head(10))  # Show first 10 rows
+        # Log the column names and preview data
+        st.write("### 📂 CSV Columns:")
+        st.write(df.columns)
 
-        # Download Button for Modified CSV
-        st.download_button(
-            label="📥 Download Processed CSV",
-            data=open(modified_file, "rb"),
-            file_name="modified_reviews.csv",
-            mime="text/csv"
-        )
+        st.write("### 📂 Data Preview:")
+        st.dataframe(df.head())
 
-        # Generate Live Dashboard for Sentiment Distribution
-        st.write("### 📊 Sentiment Distribution")
-        sentiment_counts = df["Sentiment Score"].value_counts()
-        
-        fig, ax = plt.subplots()
-        ax.bar(sentiment_counts.index, sentiment_counts.values, color=["green", "gray", "red"])
-        ax.set_xlabel("Sentiment")
-        ax.set_ylabel("Count")
-        ax.set_title("Distribution of Sentiment Scores")
-        st.pyplot(fig)
+        # Ensure the 'Review' column exists
+        if "Review" not in df.columns:
+            st.error("❌ The CSV file must contain a column named 'Review' for sentiment analysis.")
+        else:
+            st.success("✅ File contains the required 'Review' column!")
 
-        # Identify Loyal Customers
-        loyal_customers_df, loyal_customers_file = get_loyal_customers(df)
+            # Process the CSV (aspect-based sentiment analysis)
+            processed_df, processed_file = process_csv(uploaded_file)
 
-        if loyal_customers_df is not None:
-            st.write("### ⭐ Most Loyal Customers")
-            st.dataframe(loyal_customers_df)
+            if processed_df is not None:
+                # Display processed results
+                st.write("### 📊 Processed Data Preview:")
+                st.dataframe(processed_df.head())
 
-            st.download_button(
-                label="📥 Download Loyal Customers CSV",
-                data=open(loyal_customers_file, "rb"),
-                file_name="loyal_customers.csv",
-                mime="text/csv"
-            )
+                # Download button for processed CSV
+                with open(processed_file, "rb") as f:
+                    st.download_button(
+                        label="📥 Download Processed CSV",
+                        data=f,
+                        file_name="processed_reviews.csv",
+                        mime="text/csv"
+                    )
 
-    # Chatbot for Sentiment Analysis Discussion
-    st.write("### 💬 Chatbot: Discuss Your Sentiment Analysis Results")
+                # =========================
+                # 🔹 Live Sentiment Dashboard
+                # =========================
+                st.header("📊 Sentiment Analysis Dashboard")
 
-    user_query = st.text_input("Ask a question about the sentiment analysis results:")
-    if user_query:
+                # Sentiment Distribution
+                sentiment_counts = processed_df["Aspect-Based Sentiment"].value_counts().reset_index()
+                sentiment_counts.columns = ["Sentiment", "Count"]
+
+                # Display bar chart
+                fig = px.bar(
+                    sentiment_counts, 
+                    x="Sentiment", 
+                    y="Count", 
+                    title="Sentiment Distribution",
+                    color="Sentiment",
+                    text_auto=True
+                )
+                st.plotly_chart(fig)
+
+                # =========================
+                # 🔹 Loyal Customer Identification
+                # =========================
+                st.header("🌟 Loyal Customers")
+
+                loyal_customers_df, loyal_customers_file = get_loyal_customers(processed_df)
+
+                if loyal_customers_df is not None:
+                    st.write("### 🎖 Top Loyal Customers:")
+                    st.dataframe(loyal_customers_df)
+
+                    with open(loyal_customers_file, "rb") as f:
+                        st.download_button(
+                            label="📥 Download Loyal Customers List",
+                            data=f,
+                            file_name="loyal_customers.csv",
+                            mime="text/csv"
+                        )
+                else:
+                    st.warning("⚠ No loyal customers identified.")
+
+            else:
+                st.error("❌ Error in processing file!")
+
+    except Exception as e:
+        st.error(f"❌ An error occurred while loading the file: {e}")
+
+# =========================
+# 🔹 Chatbot Section
+# =========================
+st.sidebar.title("💬 Sentiment Chatbot")
+user_query = st.sidebar.text_input("Ask about the sentiment analysis results:")
+
+if user_query:
+    with st.spinner("🤖 Thinking..."):
         response = chatbot_on_sentiment_analysis(user_query)
-        st.write(f"🤖 Chatbot: {response}")
+        st.sidebar.write("🧠 **Chatbot Response:**")
+        st.sidebar.success(response)
